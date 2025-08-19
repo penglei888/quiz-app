@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>英语问答语音识别 Demo</title>
+<style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { margin: 5px; padding: 10px; }
+    #question { font-weight: bold; margin-top: 20px; display: none; }
+    #result { margin-top: 20px; font-size: 1.2em; }
+    #answerDetail { margin-top: 10px; font-size: 1em; color: #333; }
+    #tip { color: #555; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>英语问答语音识别 Demo</h2>
+<button id="newQuestionBtn">随机出题并朗读</button>
+<button id="toggleQuestionBtn">显示题目</button>
+<button id="startBtn">🎤 开始录音回答</button>
+<button id="stopBtn">⏹ 停止录音</button>
+
+<div id="tip">提示：5 秒不说话将自动停止录音（支持模糊匹配）。</div>
+
+<div id="question"></div>
+<div id="recognizedText"></div>
+<div id="result"></div>
+<div id="answerDetail"></div>
+
+<script>
+let qaList = [];
+let currentQA = null;
+let recognition = null;
+let lastSpeechTime = null;
+let silenceTimer = null;
+let finalTranscript = "";
+let questionVisible = false; // 题目显示状态
+
+// ===== 从外部 JSON 加载题库 =====
+fetch('qa.json')
+    .then(response => {
+        if (!response.ok) throw new Error('加载题库失败');
+        return response.json();
+    })
+    .then(data => {
+        qaList = data;
+        console.log("题库加载成功，共", qaList.length, "道题");
+    })
+    .catch(err => {
+        console.error(err);
+        alert("无法加载题库，请检查 qa.json 是否存在");
+    });
+
+// ===== 随机出题并朗读 =====
+document.getElementById('newQuestionBtn').addEventListener('click', () => {
+    if (qaList.length === 0) {
+        alert('题库未加载，请稍后再试');
+        return;
+    }
+    const randomIndex = Math.floor(Math.random() * qaList.length);
+    currentQA = qaList[randomIndex];
+    // 默认隐藏题目
+    questionVisible = false;
+    document.getElementById('question').style.display = 'none';
+    document.getElementById('question').textContent = currentQA.q;
+    document.getElementById('toggleQuestionBtn').textContent = "显示题目";
+    document.getElementById('recognizedText').textContent = '';
+    document.getElementById('result').textContent = '';
+    document.getElementById('answerDetail').textContent = '';
+    finalTranscript = "";
+
+    // 自动朗读题目
+    readText(currentQA.q);
+});
+
+// ===== 显示/隐藏题目 =====
+document.getElementById('toggleQuestionBtn').addEventListener('click', () => {
+    if (!currentQA) {
+        alert('请先点击“随机出题并朗读”！');
+        return;
+    }
+    questionVisible = !questionVisible;
+    document.getElementById('question').style.display = questionVisible ? 'block' : 'none';
+    document.getElementById('toggleQuestionBtn').textContent = questionVisible ? "隐藏题目" : "显示题目";
+});
+
+// ===== 朗读函数 =====
+function readText(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    speechSynthesis.speak(utterance);
+}
+
+// ===== 语音识别初始化 =====
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) {
+    alert('当前浏览器不支持 Web Speech API，请使用 Chrome 或 Edge 打开。');
+} else {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = true;
+
+    recognition.onstart = () => {
+        document.getElementById('recognizedText').textContent = '🎤 正在聆听...';
+        lastSpeechTime = Date.now();
+        finalTranscript = "";
+        startSilenceTimer();
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[event.results.length - 1][0].transcript.trim();
+        if (transcript) {
+            finalTranscript = transcript;
+            lastSpeechTime = Date.now();
+        }
+    };
+
+    recognition.onerror = (event) => {
+        document.getElementById('recognizedText').textContent = '语音识别出错: ' + event.error;
+        stopSilenceTimer();
+    };
+
+    recognition.onend = () => {
+        console.log("录音结束");
+        stopSilenceTimer();
+    };
+}
+
+// ===== 开始录音 =====
+document.getElementById('startBtn').addEventListener('click', () => {
+    if (!currentQA) {
+        alert('请先点击“随机出题并朗读”！');
+        return;
+    }
+    recognition.start();
+});
+
+// ===== 停止录音（手动） =====
+document.getElementById('stopBtn').addEventListener('click', () => {
+    stopRecognition("⏹ 手动停止录音");
+});
+
+// ===== 自动停止录音的定时器 =====
+function startSilenceTimer() {
+    stopSilenceTimer();
+    silenceTimer = setInterval(() => {
+        if (lastSpeechTime && Date.now() - lastSpeechTime > 5000) {
+            stopRecognition("⏹ 5 秒无讲话，自动停止录音");
+        }
+    }, 1000);
+}
+
+function stopSilenceTimer() {
+    if (silenceTimer) {
+        clearInterval(silenceTimer);
+        silenceTimer = null;
+    }
+}
+
+function stopRecognition(reason) {
+    if (recognition) {
+        recognition.stop();
+    }
+    stopSilenceTimer();
+    if (reason) {
+        document.getElementById('recognizedText').textContent = reason;
+    }
+    showFinalResult();
+}
+
+// ===== 文本预处理 =====
+function normalize(text) {
+    return text.trim().toLowerCase().replace(/[^\w\s]/g, '');
+}
+
+// ===== Levenshtein 距离计算 =====
+function levenshtein(a, b) {
+    const m = [];
+    let i, j;
+    if (!(a && b)) return (b ? b.length : 0) + (a ? a.length : 0);
+    for (i = 0; i <= b.length; m[i] = [i++]);
+    for (j = 0; j <= a.length; m[0][j] = j++);
+    for (i = 1; i <= b.length; i++) {
+        for (j = 1; j <= a.length; j++) {
+            m[i][j] = b.charAt(i - 1) === a.charAt(j - 1)
+                ? m[i - 1][j - 1]
+                : Math.min(
+                    m[i - 1][j - 1] + 1,
+                    Math.min(m[i][j - 1] + 1, m[i - 1][j] + 1)
+                );
+        }
+    }
+    return m[b.length][a.length];
+}
+
+// ===== 模糊匹配判断 =====
+function isAnswerCorrect(userAnswer, correctAnswer) {
+    const ua = normalize(userAnswer);
+    const ca = normalize(correctAnswer);
+    if (!ua || !ca) return false;
+
+    if (ua === ca) return true;
+    if (ua.includes(ca)) return true;
+
+    const distance = levenshtein(ua, ca);
+    const maxLen = Math.max(ua.length, ca.length);
+    const similarity = 1 - distance / maxLen;
+
+    return similarity >= 0.8;
+}
+
+// ===== 显示最终结果 =====
+function showFinalResult() {
+    if (!currentQA) return;
+
+    if (!finalTranscript) {
+        document.getElementById('result').textContent = '❌ 未检测到有效回答';
+        document.getElementById('answerDetail').innerHTML = `
+            <strong>你的回答：</strong>（无）<br>
+            <strong>正确答案：</strong> ${currentQA.a}
+        `;
+        return;
+    }
+
+    const correct = isAnswerCorrect(finalTranscript, currentQA.a);
+    document.getElementById('result').textContent = correct ? '✅ 正确' : '❌ 错误';
+    document.getElementById('answerDetail').innerHTML = `
+        <strong>你的回答：</strong> ${finalTranscript} <br>
+        <strong>正确答案：</strong> ${currentQA.a}
+    `;
+}
+</script>
+</body>
+</html>
