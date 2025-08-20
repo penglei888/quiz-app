@@ -2,44 +2,192 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>英语问答语音识别 Demo</title>
+<title>English Q&A Voice App</title>
 <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    button { margin: 5px; padding: 10px; }
-    #question { font-weight: bold; margin-top: 20px; display: none; }
-    #result { margin-top: 20px; font-size: 1.2em; }
-    #answerDetail { margin-top: 10px; font-size: 1em; color: #333; }
-    #tip { color: #555; margin-top: 10px; }
-    #allQuestionsList { margin-top: 15px; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; display: none; }
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f7fa;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+    }
+    .container {
+        max-width: 800px;
+        width: 100%;
+        padding: 20px;
+    }
+    h2 {
+        text-align: center;
+        color: #333;
+    }
+    .btn-group, .select-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 15px;
+    }
+    select, button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    select {
+        background: white;
+        border: 1px solid #ccc;
+    }
+    /* 按钮基础样式 */
+    button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    /* 悬停统一效果 */
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    /* 深蓝 - 主要操作 */
+    .btn-primary {
+        background: linear-gradient(135deg, #2b6cb0, #2c5282);
+    }
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #2c5282, #2a4365);
+    }
+
+    /* 深红 - 停止操作 */
+    .btn-danger {
+        background: linear-gradient(135deg, #c53030, #9b2c2c);
+    }
+    .btn-danger:hover {
+        background: linear-gradient(135deg, #9b2c2c, #742a2a);
+    }
+
+    /* 深绿色 - 辅助功能 */
+    .btn-success {
+        background: linear-gradient(135deg, #2f855a, #276749);
+    }
+    .btn-success:hover {
+        background: linear-gradient(135deg, #276749, #22543d);
+    }
+
+    /* 深灰蓝 - 信息类 */
+    .btn-info {
+        background: linear-gradient(135deg, #4a5568, #2d3748);
+    }
+    .btn-info:hover {
+        background: linear-gradient(135deg, #2d3748, #1a202c);
+    }
+
+    #tip {
+        text-align: center;
+        color: #666;
+        margin-bottom: 15px;
+    }
+    #question, #allQuestionsList {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-top: 10px;
+    }
+    #allQuestionsList {
+        max-height: 200px;
+        overflow-y: auto;
+        font-size: 14px;
+        color: #444;
+    }
+    #recognizedText {
+        margin-top: 15px;
+        font-weight: bold;
+        color: #007bff;
+        text-align: center;
+    }
+    #result {
+        font-size: 18px;
+        text-align: center;
+        margin-top: 10px;
+    }
+    #result.correct {
+        color: green;
+    }
+    #result.incorrect {
+        color: red;
+    }
+    #answerDetail {
+        background: #fff;
+        padding: 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        margin-top: 10px;
+        font-size: 14px;
+        color: #333;
+    }
 </style>
 </head>
 <body>
 
-<h2>英语问答语音识别 Demo</h2>
+<div class="container">
+    <h2>🎤 English Q&A Voice App</h2>
 
-<!-- 控制按钮 -->
-<button id="newQuestionBtn">随机出题并朗读</button>
-<button id="toggleQuestionBtn">显示题目</button>
-<button id="showAllQuestionsBtn">显示全部题目</button>
-<button id="startBtn">🎤 开始录音回答</button>
-<button id="stopBtn">⏹ 停止录音</button>
-<button id="readAnswerBtn">🔊 朗读答案</button> <!-- 新增按钮 -->
+    <!-- 选择题库 -->
+    <div class="select-group">
+        <label for="qaSelect">选择题库：</label>
+        <select id="qaSelect">
+            <option value="qa.json">题库 1</option>
+            <option value="qa2.json">题库 2</option>
+        </select>
+    </div>
 
-<!-- 提示 -->
-<div id="tip">提示：5 秒不说话将自动停止录音（支持模糊匹配）。</div>
+<!-- 新增：模糊匹配选项 -->
 
-<!-- 显示题目和答题结果 -->
-<div id="question"></div>
-<div id="allQuestionsList"></div>
-<div id="recognizedText"></div>
-<div id="result"></div>
-<div id="answerDetail"></div>
+    <div class="select-group">
+        <label>
+            <input type="checkbox" id="fuzzyMatch" checked>
+            使用模糊匹配答案
+        </label>
+    </div>
 
-<!-- 引用外部 JS 文件（顺序很重要） -->
+    <!-- 控制按钮 -->
+<div class="btn-group">
+    <button id="newQuestionBtn" class="btn-primary">随机出题并朗读</button>
+    <button id="readQuestionBtn" class="btn-success">🔊 朗读题目</button>
+    <button id="toggleQuestionBtn" class="btn-info">显示题目</button>
+    <button id="showAllQuestionsBtn" class="btn-info">显示全部题目</button>
+    <button id="showAnswerBtn" class="btn-info">显示答案</button> <!-- 新增按钮 -->
+    <button id="startBtn" class="btn-primary">🎤 开始录音回答</button>
+    <button id="stopBtn" class="btn-danger">⏹ 停止录音</button>
+    <button id="readAnswerBtn" class="btn-success">🔊 朗读答案</button>
+    <button id="readUserAnswerBtn" class="btn-success">🔊 朗读用户回答</button>
+    <button id="playOriginalBtn" class="btn-success">🎤 播放原声</button>
+</div>
+
+
+    <div id="tip">提示：可选择题库，点击“随机出题并朗读”开始。</div>
+
+    <div id="question"></div>
+    <div id="allQuestionsList"></div>
+    <div id="recognizedText"></div>
+    <div id="result"></div>
+    <div id="answerDetail"></div>
+</div>
+
 <script src="js/utils.js"></script>
 <script src="js/tts.js"></script>
 <script src="js/speech.js"></script>
+<script src="js/recorder.js"></script>
+<script src="js/question.js"></script>
 <script src="js/main.js"></script>
+
 
 </body>
 </html>

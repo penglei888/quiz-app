@@ -1,0 +1,12 @@
+[
+  { "q": "What is your favorite hobby?", "a": "My favorite hobby is reading books." },
+  { "q": "Where did you grow up?", "a": "I grew up in a small town." },
+  { "q": "What is your favorite food?", "a": "My favorite food is pizza." },
+  { "q": "What do you usually do on weekends?", "a": "I usually go hiking or meet friends on weekends." },
+  { "q": "Which season do you like the most?", "a": "I like spring the most because the weather is nice." },
+  { "q": "Do you enjoy traveling?", "a": "Yes, I enjoy traveling to new places." },
+  { "q": "What is your favorite movie?", "a": "My favorite movie is Inception." },
+  { "q": "Do you prefer coffee or tea?", "a": "I prefer coffee in the morning and tea in the afternoon." },
+  { "q": "What kind of music do you like?", "a": "I like pop and classical music." },
+  { "q": "Have you ever been abroad?", "a": "Yes, I have visited several countries." }
+]
