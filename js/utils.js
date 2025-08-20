@@ -28,6 +28,9 @@ function isAnswerCorrect(userAnswer, correctAnswer) {
     if (ua === ca) return true;
     if (ua.includes(ca)) return true;
     const distance = levenshtein(ua, ca);
-    const similarity = 1 - distance / Math.max(ua.length, ca.length);
-    return similarity >= 0.8;
+    return (1 - distance / Math.max(ua.length, ca.length)) >= 0.8;
+}
+
+function isAnswerStrict(userAnswer, correctAnswer) {
+    return normalize(userAnswer) === normalize(correctAnswer);
 }

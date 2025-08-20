@@ -1,58 +1,42 @@
-let qaList = [];
-let currentQA = null;
-let questionVisible = false;
+// ===== main.js =====
+loadQuestionBank(currentQaFile); // 从 question.js
+const recognitionInstance = initSpeechRecognition(); // 从 speech.js
 
-// ===== 加载题库 =====
-fetch('qa.json')
-    .then(res => res.json())
-    .then(data => { 
-        qaList = data; 
-        console.log(`题库加载成功，共 ${qaList.length} 道题`);
-    })
-    .catch(err => {
-        console.error(err);
-        alert("加载题库失败，请检查 qa.json");
-    });
-
-// ===== 随机出题并朗读 =====
-document.getElementById('newQuestionBtn').addEventListener('click', () => {
-    if (qaList.length === 0) {
-        alert("题库未加载完成，请稍后再试");
-        return;
-    }
-    const randomIndex = Math.floor(Math.random() * qaList.length);
-    currentQA = qaList[randomIndex];
-    questionVisible = false;
-    document.getElementById('question').style.display = 'none';
-    document.getElementById('question').textContent = currentQA.q;
-    document.getElementById('toggleQuestionBtn').textContent = "显示题目";
-    document.getElementById('recognizedText').textContent = '';
+// 选择题库
+document.getElementById('qaSelect').addEventListener('change', function () {
+    currentQaFile = this.value;
+    loadQuestionBank(currentQaFile);
+    currentQA = null;
+    document.getElementById('question').textContent = '';
     document.getElementById('result').textContent = '';
     document.getElementById('answerDetail').textContent = '';
+    document.getElementById('recognizedText').textContent = '';
     document.getElementById('allQuestionsList').style.display = 'none';
+});
+
+// 随机出题并朗读
+document.getElementById('newQuestionBtn').addEventListener('click', newQuestion);
+
+// 朗读题目
+document.getElementById('readQuestionBtn').addEventListener('click', () => {
+    if (!currentQA) return alert("请先随机出题");
     readText(currentQA.q);
 });
 
-// ===== 显示/隐藏当前题目 =====
+// 显示/隐藏题目
 document.getElementById('toggleQuestionBtn').addEventListener('click', () => {
-    if (!currentQA) {
-        alert("请先随机出题");
-        return;
-    }
+    if (!currentQA) return alert("请先随机出题");
     questionVisible = !questionVisible;
     document.getElementById('question').style.display = questionVisible ? 'block' : 'none';
     document.getElementById('toggleQuestionBtn').textContent = questionVisible ? "隐藏题目" : "显示题目";
 });
 
-// ===== 显示全部题目 =====
+// 显示全部题目
 document.getElementById('showAllQuestionsBtn').addEventListener('click', () => {
-    if (qaList.length === 0) {
-        alert("题库未加载完成，请稍后再试");
-        return;
-    }
+    if (qaList.length === 0) return alert("题库未加载完成，请稍后再试");
     const listDiv = document.getElementById('allQuestionsList');
     if (listDiv.style.display === 'none') {
-        listDiv.innerHTML = "<strong>全部题目：</strong><br>" + 
+        listDiv.innerHTML = "<strong>全部题目：</strong><br>" +
             qaList.map((item, i) => (i + 1) + ". " + item.q).join("<br>");
         listDiv.style.display = 'block';
         document.getElementById('showAllQuestionsBtn').textContent = "隐藏全部题目";
@@ -62,40 +46,46 @@ document.getElementById('showAllQuestionsBtn').addEventListener('click', () => {
     }
 });
 
-// ===== 初始化语音识别 =====
-const recognitionInstance = initSpeechRecognition();
+// 显示答案
+document.getElementById('showAnswerBtn').addEventListener('click', showAnswer);
 
-// ===== 开始录音 =====
+// 开始录音
 document.getElementById('startBtn').addEventListener('click', () => {
-    if (!currentQA) {
-        alert("请先随机出题");
-        return;
-    }
-    if (recognitionInstance) {
-        recognitionInstance.start();
-    }
+    if (!currentQA) return alert("请先随机出题");
+    if (recognitionInstance) recognitionInstance.start();
+    startRecording(); // 从 recorder.js
 });
 
-// ===== 停止录音 =====
+// 停止录音
 document.getElementById('stopBtn').addEventListener('click', () => {
     stopRecognition("⏹ 手动停止录音");
+    stopRecording(); // 从 recorder.js
 });
 
-// ===== 朗读答案按钮事件 =====
+// 播放原声
+document.getElementById('playOriginalBtn').addEventListener('click', playOriginalAudio);
+
+// 朗读答案
 document.getElementById('readAnswerBtn').addEventListener('click', () => {
-    if (!currentQA) {
-        alert("请先随机出题");
-        return;
-    }
+    if (!currentQA) return alert("请先随机出题");
     readText(currentQA.a);
+});
+
+// 朗读用户回答（TTS）
+document.getElementById('readUserAnswerBtn').addEventListener('click', () => {
+    const ans = getFinalTranscript();
+    if (!ans) return alert("还没有检测到用户回答，请先录音回答。");
+    readText(ans);
 });
 
 // ===== 显示最终结果 =====
 function showFinalResult() {
     const answer = getFinalTranscript();
-    
-    if (!answer) {
+    console.log("main.js showFinalResult 获取到的回答:", answer);
+
+    if (!answer || answer.trim() === "") {
         document.getElementById('result').textContent = '❌ 未检测到有效回答';
+        document.getElementById('result').className = 'incorrect';
         document.getElementById('answerDetail').innerHTML = `
             <strong>你的回答：</strong>（无）<br>
             <strong>正确答案：</strong> ${currentQA ? currentQA.a : ""}
@@ -103,10 +93,27 @@ function showFinalResult() {
         return;
     }
 
-    const correct = isAnswerCorrect(answer, currentQA.a);
+    const useFuzzy = document.getElementById('fuzzyMatch')?.checked ?? true;
+    const correct = useFuzzy
+        ? isAnswerCorrect(answer, currentQA.a)
+        : isAnswerStrict(answer, currentQA.a);
+
     document.getElementById('result').textContent = correct ? '✅ 正确' : '❌ 错误';
+    document.getElementById('result').className = correct ? 'correct' : 'incorrect';
+
     document.getElementById('answerDetail').innerHTML = `
-        <strong>你的回答：</strong> ${answer} <br>
+        <strong>你的回答：</strong> ${answer} 
+        <button id="playUserAnswerBtn" style="padding:2px 6px; font-size:12px; margin-left:5px;">🔊TTS</button>
+        <button id="playUserOriginalBtn" style="padding:2px 6px; font-size:12px; margin-left:5px;">🎤原声</button>
+        <br>
         <strong>正确答案：</strong> ${currentQA.a}
     `;
+
+    // 绑定按钮
+    document.getElementById('playUserAnswerBtn').addEventListener('click', () => {
+        readText(answer);
+    });
+    document.getElementById('playUserOriginalBtn').addEventListener('click', () => {
+        playOriginalAudio();
+    });
 }
