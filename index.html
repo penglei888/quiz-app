@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>English Q&A Voice App</title>
+<title>英语问答语音识别 Demo</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -39,59 +39,64 @@
         background: white;
         border: 1px solid #ccc;
     }
-    /* 按钮基础样式 */
-    button {
-        padding: 10px 15px;
-        border: none;
-        border-radius: 6px;
-        color: white;
-        font-size: 14px;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-
-    /* 悬停统一效果 */
-    button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-
-    /* 深蓝 - 主要操作 */
+    /* 按钮颜色分类 */
     .btn-primary {
         background: linear-gradient(135deg, #2b6cb0, #2c5282);
+        color: white;
     }
     .btn-primary:hover {
         background: linear-gradient(135deg, #2c5282, #2a4365);
     }
-
-    /* 深红 - 停止操作 */
     .btn-danger {
         background: linear-gradient(135deg, #c53030, #9b2c2c);
+        color: white;
     }
     .btn-danger:hover {
         background: linear-gradient(135deg, #9b2c2c, #742a2a);
     }
-
-    /* 深绿色 - 辅助功能 */
     .btn-success {
         background: linear-gradient(135deg, #2f855a, #276749);
+        color: white;
     }
     .btn-success:hover {
         background: linear-gradient(135deg, #276749, #22543d);
     }
-
-    /* 深灰蓝 - 信息类 */
     .btn-info {
         background: linear-gradient(135deg, #4a5568, #2d3748);
+        color: white;
     }
     .btn-info:hover {
         background: linear-gradient(135deg, #2d3748, #1a202c);
     }
-
-    #tip {
-        text-align: center;
-        color: #666;
-        margin-bottom: 15px;
+    /* 录音状态文字闪烁 */
+    .recording {
+        color: red;
+        font-weight: bold;
+        animation: blink 1s infinite;
+    }
+    @keyframes blink {
+        0%, 50%, 100% { opacity: 1; }
+        25%, 75% { opacity: 0; }
+    }
+    /* 录音按钮小红点动画 */
+    .recording-btn {
+        position: relative;
+    }
+    .recording-btn::after {
+        content: "";
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 10px;
+        height: 10px;
+        background-color: red;
+        border-radius: 50%;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
     }
     #question, #allQuestionsList {
         background: white;
@@ -109,7 +114,6 @@
     #recognizedText {
         margin-top: 15px;
         font-weight: bold;
-        color: #007bff;
         text-align: center;
     }
     #result {
@@ -137,7 +141,7 @@
 <body>
 
 <div class="container">
-    <h2>🎤 English Q&A Voice App</h2>
+    <h2>🎤 英语问答语音识别 Demo</h2>
 
     <!-- 选择题库 -->
     <div class="select-group">
@@ -148,46 +152,34 @@
         </select>
     </div>
 
-<!-- 新增：模糊匹配选项 -->
-
-    <div class="select-group">
-        <label>
-            <input type="checkbox" id="fuzzyMatch" checked>
-            使用模糊匹配答案
-        </label>
+    <!-- 控制按钮 -->
+    <div class="btn-group">
+        <button id="newQuestionBtn" class="btn-primary">随机出题并朗读</button>
+        <button id="readQuestionBtn" class="btn-success">🔊 朗读题目</button>
+        <button id="toggleQuestionBtn" class="btn-info">显示题目</button>
+        <button id="showAllQuestionsBtn" class="btn-info">显示全部题目</button>
+        <button id="showAnswerBtn" class="btn-info">显示答案</button>
+        <button id="startBtn" class="btn-primary">🎤 开始录音回答</button>
+        <button id="stopBtn" class="btn-danger">⏹ 停止录音</button>
+        <button id="readAnswerBtn" class="btn-success">🔊 朗读答案</button>
+        <button id="readUserAnswerBtn" class="btn-success">🔊 朗读用户回答</button>
+        <button id="playOriginalBtn" class="btn-success">🎤 播放原声</button>
     </div>
 
-    <!-- 控制按钮 -->
-<div class="btn-group">
-    <button id="newQuestionBtn" class="btn-primary">随机出题并朗读</button>
-    <button id="readQuestionBtn" class="btn-success">🔊 朗读题目</button>
-    <button id="toggleQuestionBtn" class="btn-info">显示题目</button>
-    <button id="showAllQuestionsBtn" class="btn-info">显示全部题目</button>
-    <button id="showAnswerBtn" class="btn-info">显示答案</button> <!-- 新增按钮 -->
-    <button id="startBtn" class="btn-primary">🎤 开始录音回答</button>
-    <button id="stopBtn" class="btn-danger">⏹ 停止录音</button>
-    <button id="readAnswerBtn" class="btn-success">🔊 朗读答案</button>
-    <button id="readUserAnswerBtn" class="btn-success">🔊 朗读用户回答</button>
-    <button id="playOriginalBtn" class="btn-success">🎤 播放原声</button>
-</div>
-
-
-    <div id="tip">提示：可选择题库，点击“随机出题并朗读”开始。</div>
-
-    <div id="question"></div>
-    <div id="allQuestionsList"></div>
     <div id="recognizedText"></div>
     <div id="result"></div>
     <div id="answerDetail"></div>
+    <div id="question"></div>
+    <div id="allQuestionsList"></div>
 </div>
 
+<!-- 引入 JS 模块 -->
 <script src="js/utils.js"></script>
 <script src="js/tts.js"></script>
 <script src="js/speech.js"></script>
 <script src="js/recorder.js"></script>
 <script src="js/question.js"></script>
 <script src="js/main.js"></script>
-
 
 </body>
 </html>
