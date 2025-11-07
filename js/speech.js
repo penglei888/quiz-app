@@ -1,8 +1,7 @@
 // ===== speech.js =====
-// 全局唯一的识别结果
 let finalTranscript = "";
+let recognitionInstance = null;
 
-// 初始化语音识别
 function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -12,33 +11,36 @@ function initSpeechRecognition() {
 
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
-    recognition.interimResults = false; // 只取最终结果
+    recognition.interimResults = false;
     recognition.maxAlternatives = 1;
-    recognition.continuous = true; // 连续模式
+    recognition.continuous = true;
 
     // 识别到结果时更新全局变量
     recognition.onresult = (event) => {
         finalTranscript = event.results[event.results.length - 1][0].transcript.trim();
-        console.log("speech.js 识别结果更新:", finalTranscript);
+        console.log("识别结果更新:", finalTranscript);
     };
 
     recognition.onerror = (event) => {
         console.error("语音识别错误:", event.error);
     };
 
+    // 识别完全结束时调用 showFinalResult
     recognition.onend = () => {
         console.log("语音识别结束");
+        showFinalResult(); // 确保结果更新完成后再调用
     };
 
+    recognitionInstance = recognition;
     return recognition;
 }
 
-// 获取最终识别结果
+// 获取识别结果
 function getFinalTranscript() {
     return finalTranscript;
 }
 
-// 停止识别并调用 showFinalResult
+// 停止识别
 function stopRecognition(reason) {
     if (recognitionInstance) {
         recognitionInstance.stop();
@@ -46,6 +48,4 @@ function stopRecognition(reason) {
     if (reason) {
         document.getElementById('recognizedText').textContent = reason;
     }
-    // 延迟调用，确保 onresult 已更新数据
-    setTimeout(showFinalResult, 150);
 }
